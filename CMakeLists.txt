@@ -7,6 +7,12 @@ SET(RELEASE_VERSION 0)
 SET(XKBSWITCH_VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${RELEASE_VERSION})
 ADD_DEFINITIONS(-DXKBSWITCH_VERSION="${XKBSWITCH_VERSION}")
 
+# Check pkg-config 
+find_package(PkgConfig)
+if(NOT PKG_CONFIG_FOUND)
+    MESSAGE(FATAL_ERROR "pkg-config not found, please install 'pkg-config' or check it existing.")
+endif()
+
 # Check presence of development libraries required for build
 FIND_PACKAGE(X11 REQUIRED)
 if(NOT X11_FOUND)
@@ -17,6 +23,14 @@ endif()
 INCLUDE_DIRECTORIES(${X11_INCLUDE_DIR})
 LINK_DIRECTORIES(${X11_LIBRARY_DIR})
 
+# Check libxkbcommon library
+PKG_CHECK_MODULES(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
+if(NOT XKBCOMMON_FOUND)
+    MESSAGE(FATAL_ERROR "Not found development files of 'libxkbcommon' required for build. CMake will exit.")
+endif()
+INCLUDE_DIRECTORIES(${XKBCOMMON_INCLUDE_DIR})
+LINK_DIRECTORIES(${XKBCOMMON_LIBRARY_DIR})
+
 # Compile and link program
 OPTION(BUILD_XKBSWITCH_LIB
     "Build a library compatible with vim's libcall interface" ON)
@@ -25,11 +39,11 @@ if(BUILD_XKBSWITCH_LIB)
     ADD_LIBRARY(${xkblib} SHARED src/XKbSwitchApi.cpp src/XKeyboard.cpp)
     SET_TARGET_PROPERTIES(${xkblib} PROPERTIES VERSION ${XKBSWITCH_VERSION} SOVERSION ${MAJOR_VERSION})
     TARGET_LINK_LIBRARIES(${xkblib} X11 xkbfile)
-    ADD_EXECUTABLE(xkb-switch src/XKbSwitch.cpp)
+    ADD_EXECUTABLE(xkb-switch src/XKbSwitch.cpp src/WXkbSwitch.cpp)
     TARGET_LINK_LIBRARIES(xkb-switch ${xkblib})
 else()
-    ADD_EXECUTABLE(xkb-switch src/XKbSwitch.cpp src/XKeyboard.cpp)
-    TARGET_LINK_LIBRARIES(xkb-switch X11 xkbfile)
+    ADD_EXECUTABLE(xkb-switch src/XKbSwitch.cpp src/XKeyboard.cpp src/WXkbSwitch.cpp)
+    TARGET_LINK_LIBRARIES(xkb-switch X11 xkbfile PkgConfig::XKBCOMMON)
 endif()
 
 # Install program
