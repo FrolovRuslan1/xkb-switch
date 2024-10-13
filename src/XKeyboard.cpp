@@ -159,6 +159,67 @@ layout_variant_strings XKeyboard::get_layout_variant()
   else
     MSG(_verbose, "No raw variant string");
 
+  struct xkb_context* context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+  if (context == NULL)
+  {
+    MSG(_verbose, "No context for libxkbcommon");
+  }
+
+  struct xkb_keymap* keymap = xkb_keymap_new_from_names(context, NULL, XKB_KEYMAP_COMPILE_NO_FLAGS);
+  if (keymap == NULL)
+  {
+    MSG(_verbose, "No keymap for libxkbcommon");
+  }
+   	
+  xkb_layout_index_t num_layouts = xkb_keymap_num_layouts(keymap);
+
+  printf("num_layouts: %d\n", num_layouts);
+
+  xcb_connection_t* connection = xcb_connect(NULL, NULL);
+  if (connection == NULL)
+  {
+    MSG(_verbose, "No connection for xcb");
+  }
+
+  uint16_t major_xkb_version_out;
+  uint16_t minor_xkb_version_out;
+  uint8_t base_event_out;
+  uint8_t base_error_out;
+
+  int ret = xkb_x11_setup_xkb_extension(connection,
+                                        XKB_X11_MIN_MAJOR_XKB_VERSION,
+                                        XKB_X11_MIN_MINOR_XKB_VERSION,
+                                        XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
+                                        &major_xkb_version_out,
+                                        &minor_xkb_version_out,
+                                        &base_event_out,
+                                        &base_error_out);
+
+  int32_t core_keyboard_device_id = xkb_x11_get_core_keyboard_device_id(connection);
+
+  struct xkb_keymap* x11_keymap = xkb_x11_keymap_new_from_device( context, 
+                                                                  connection, 
+                                                                  core_keyboard_device_id, 
+                                                                  XKB_KEYMAP_COMPILE_NO_FLAGS);
+	if (x11_keymap == NULL)
+  {
+    MSG(_verbose, "No x11_keymap for libxkbcommon");
+  }
+  
+  xkb_layout_index_t num_layouts_x11 = xkb_keymap_num_layouts(x11_keymap);
+
+  printf("num_layouts_x11: %d\n", num_layouts_x11);
+
+  struct xkb_state* xkb_x11_state = xkb_x11_state_new_from_device(x11_keymap, 
+                                                                  connection, 
+                                                                  core_keyboard_device_id);
+
+  for (xkb_layout_index_t i = 0; i < num_layouts_x11; i++)
+  {
+    printf("i: %d layout: %s\n", i, xkb_keymap_layout_get_name(x11_keymap, i)); 
+  }
+
+
   return make_pair(string(vdr._it.layout ? vdr._it.layout : "us"),
                    string(vdr._it.variant ? vdr._it.variant : ""));
 }
