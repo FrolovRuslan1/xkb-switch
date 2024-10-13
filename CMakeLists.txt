@@ -8,7 +8,7 @@ SET(XKBSWITCH_VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${RELEASE_VERSION})
 ADD_DEFINITIONS(-DXKBSWITCH_VERSION="${XKBSWITCH_VERSION}")
 
 # Check pkg-config 
-find_package(PkgConfig)
+FIND_PACKAGE(PkgConfig)
 if(NOT PKG_CONFIG_FOUND)
     MESSAGE(FATAL_ERROR "pkg-config not found, please install 'pkg-config' or check it existing.")
 endif()
@@ -25,11 +25,24 @@ LINK_DIRECTORIES(${X11_LIBRARY_DIR})
 
 # Check libxkbcommon library
 PKG_CHECK_MODULES(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
+PKG_CHECK_MODULES(XKBCOMMON_X11 REQUIRED IMPORTED_TARGET xkbcommon-x11)
+PKG_CHECK_MODULES(XCB REQUIRED IMPORTED_TARGET xcb)
 if(NOT XKBCOMMON_FOUND)
     MESSAGE(FATAL_ERROR "Not found development files of 'libxkbcommon' required for build. CMake will exit.")
 endif()
-INCLUDE_DIRECTORIES(${XKBCOMMON_INCLUDE_DIR})
-LINK_DIRECTORIES(${XKBCOMMON_LIBRARY_DIR})
+if(NOT XKBCOMMON_X11_FOUND)
+    MESSAGE(FATAL_ERROR "Not found development files of 'libxkbcommon-x11-dev' required for build. CMake will exit.")
+endif()
+if(NOT XCB_FOUND)
+    MESSAGE(FATAL_ERROR "Not found development files of 'libxcb' required for build. CMake will exit.")
+endif()
+
+INCLUDE_DIRECTORIES(${XKBCOMMON_INCLUDE_DIRS})
+LINK_DIRECTORIES(${XKBCOMMON_LIBRARY_DIRS})
+INCLUDE_DIRECTORIES(${XKBCOMMON_X11_INCLUDE_DIRS})
+LINK_DIRECTORIES(${XKBCOMMON_X11_LIBRARY_DIRS})
+INCLUDE_DIRECTORIES(${XCB_INCLUDE_DIRS})
+LINK_DIRECTORIES(${XCB_LIBRARY_DIRS})
 
 # Compile and link program
 OPTION(BUILD_XKBSWITCH_LIB
@@ -38,12 +51,12 @@ if(BUILD_XKBSWITCH_LIB)
     SET(xkblib xkbswitch)
     ADD_LIBRARY(${xkblib} SHARED src/XKbSwitchApi.cpp src/XKeyboard.cpp)
     SET_TARGET_PROPERTIES(${xkblib} PROPERTIES VERSION ${XKBSWITCH_VERSION} SOVERSION ${MAJOR_VERSION})
-    TARGET_LINK_LIBRARIES(${xkblib} X11 xkbfile)
-    ADD_EXECUTABLE(xkb-switch src/XKbSwitch.cpp src/WXkbSwitch.cpp)
+    TARGET_LINK_LIBRARIES(${xkblib} X11 xkbfile PkgConfig::XKBCOMMON PkgConfig::XKBCOMMON_X11 PkgConfig::XCB)
+    ADD_EXECUTABLE(xkb-switch src/XKbSwitch.cpp)
     TARGET_LINK_LIBRARIES(xkb-switch ${xkblib})
 else()
-    ADD_EXECUTABLE(xkb-switch src/XKbSwitch.cpp src/XKeyboard.cpp src/WXkbSwitch.cpp)
-    TARGET_LINK_LIBRARIES(xkb-switch X11 xkbfile PkgConfig::XKBCOMMON)
+    ADD_EXECUTABLE(xkb-switch src/XKbSwitch.cpp src/XKeyboard.cpp)
+    TARGET_LINK_LIBRARIES(xkb-switch X11 xkbfile PkgConfig::XKBCOMMON PkgConfig::XKBCOMMON_X11 PkgConfig::XCB)
 endif()
 
 # Install program
